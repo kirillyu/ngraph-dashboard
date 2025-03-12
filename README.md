@@ -10,4 +10,4 @@ instance="compose-wra-01.prod.px.croc-comp.goods.local:9100"
 ```
 
 And demo video:
-https://youtu.be/t753KEy9c3Q
+https://youtu.be/JSCnlfjGJuo
