@@ -1,0 +1,489 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_VICTORIA-CROC-COMP.GOODS.LOCAL",
+      "label": "Victoria-croc-comp.goods.local",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "11.4.0"
+    },
+    {
+      "type": "panel",
+      "id": "marcusolsson-dynamictext-panel",
+      "name": "Dynamic Text",
+      "version": "4.5.0"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "volkovlabs-echarts-panel",
+      "name": "Business Charts",
+      "version": "6.6.0"
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIA-CROC-COMP.GOODS.LOCAL}"
+      },
+      "gridPos": {
+        "h": 17,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "baidu": {
+          "callback": "bmapReady",
+          "key": ""
+        },
+        "editor": {
+          "format": "auto"
+        },
+        "editorMode": "code",
+        "gaode": {
+          "key": "",
+          "plugin": "AMap.Scale,AMap.ToolBar"
+        },
+        "getOption": "let nodes = [];\nlet links = [];\nlet nodes_update = [];\nlet categories;\n\ntry {\n  context.panel.data.series.map((s) => {\n    if (s.refId == \"nodes_update\") {\n      const id_update = s.fields.find((f) => f.name === 'id').values;\n      const title_update = s.fields.find((f) => f.name === 'title').values;\n      const category_update = s.fields.find((f) => f.name === 'category').values;\n      nodes_update = title_update.map((it, i) => ({\n        \"id\": id_update[i],\n        \"name\": it,\n        \"category\": category_update[i]\n      }));\n    }\n\n    if (s.refId == \"nodes\") {\n      const category = s.fields.find((f) => f.name === 'category').values;\n      const id = s.fields.find((f) => f.name === 'id').values;\n      const title = s.fields.find((f) => f.name === 'title').values;\n      nodes = title.map((it, i) => ({\n        \"id\": id[i],\n        \"name\": it,\n        \"x\": context.panel.chart.getWidth(),\n        \"y\": context.panel.chart.getWidth(),\n        \"symbolSize\": 15,\n        \"value\": 1,\n        \"label\": {\n          \"position\": 'right',\n          \"formatter\": '{b}',\n          \"color\": '#000',\n          \"backgroundColor\": '#fff'\n        },\n        \"itemStyle\": {\n          \"opacity\": 1,\n          \"cursor\": 'pointer'\n        },\n        \"category\": category[i]\n      }));\n    }\n\n    if (s.refId == \"edges\") {\n      const source = s.fields.find((f) => f.name === 'src_ip').values;\n      const target = s.fields.find((f) => f.name === 'dest_ip').values;\n      links = source.map((its, i) => ({\n        \"source\": its,\n        \"target\": target[i]\n      }));\n    }\n  });\n\n  // Remove entries with empty id, src_ip or dest_ip\n  nodes = nodes.filter(node => node.id !== \"\");\n  nodes_update = nodes_update.filter(node => node.id !== \"\");\n  links = links.filter(link => link.source !== \"\" && link.target !== \"\");\n\n  // Remove duplicate nodes by id\n  const uniqueNodes = new Map();\n  nodes.forEach(node => {\n    if (!uniqueNodes.has(node.id)) {\n      uniqueNodes.set(node.id, node);\n    }\n  });\n  nodes = Array.from(uniqueNodes.values());\n\n  // Remove duplicate nodes_update by id\n  const uniqueNodesUpdate = new Map();\n  nodes_update.forEach(node => {\n    if (!uniqueNodesUpdate.has(node.id)) {\n      uniqueNodesUpdate.set(node.id, node);\n    }\n  });\n  nodes_update = Array.from(uniqueNodesUpdate.values());\n\n  // Remove duplicate links\n  const uniqueLinks = new Set();\n  links.forEach(link => {\n    const key = `${link.source}-${link.target}`;\n    if (!uniqueLinks.has(key)) {\n      uniqueLinks.add(key);\n    }\n  });\n  links = Array.from(uniqueLinks).map(key => {\n    const [source, target] = key.split(\"-\");\n    return { source, target };\n  });\n\n  console.log(\"before\", nodes_update);\n\n  // Update nodes with nodes_update information\n  nodes.forEach((node, i) => {\n    if (node.name.match(/^\\d/)) {\n      const update = nodes_update.find(row => node.id === row.id);\n      if (update) {\n        nodes[i] = {\n          ...node,\n          name: update.name,\n          symbolSize: 25,\n          value: 2,\n          category: update.category\n        };\n      } else {\n        nodes[i].symbolSize = 25;\n        nodes[i].value = 2;\n      }\n    } else {\n      nodes[i].symbolSize = 25;\n      nodes[i].value = 2;\n    }\n  });\n\n  categories = Array.from(new Set(nodes.map(item => item.category)));\n  nodes.forEach((item, i) => {\n    nodes[i].category = categories.indexOf(item.category);\n    if (!item.name) {\n      console.error('NO-NAME', item[i]);\n      item[i].name = 'none';\n    }\n  });\n  categories = categories.map((item) => ({\n    \"name\": item\n  }));\n\n  console.log(\"nodes\", nodes);\n  console.log(\"nodes_update\", nodes_update);\n  console.log(\"links\", links);\n  console.log(\"categories\", categories);\n\n  context.panel.chart.on(\"click\", (params) => {\n    if (params.dataType === 'node') {\n      const connections = links.filter(link => link.source === params.data.id || link.target === params.data.id);\n      let table = `Source Direction Target`;\n      connections.forEach(connection => {\n        let direction = connection.source === params.data.id ? '→' : '←';\n        let src = connection.source;\n        let trgt = connection.target;\n        if (nodes_update.find(node => node.id == src)) {\n          src = nodes_update.find(node => node.id == src).name;\n        }\n        if (nodes_update.find(node => node.id == trgt)) {\n          trgt = nodes_update.find(node => node.id == trgt).name;\n        }\n        table += `\\r\\n${src} ${direction} ${trgt}`;\n      });\n      // Копируем таблицу в буфер обмена\n      navigator.clipboard.writeText(table).then(function () {\n        console.log('Copying to clipboard was successful!');\n      }, function (err) {\n        console.error('Could not copy text: ', err);\n      });\n    }\n  });\n\n  return {\n    tooltip: {\n      show: true,\n      label: {\n        fontSize: 3,\n        color: '#000',\n        backgroundColor: '#fff'\n      },\n      position: 'bottom',\n      formatter: function (params) {\n        if (params.dataType === 'node') {\n          document.body.style.cursor = 'pointer';\n          // Находим все связи данного узла\n          const connections = links.filter(link => link.source === params.data.id || link.target === params.data.id);\n          // Формируем HTML-таблицу\n          let table = `<div style=\"font-size: 9px;\">Left mouse click to copy<br>Source Direction Target`;\n          connections.forEach(connection => {\n            let direction = connection.source === params.data.id ? '→' : '←';\n            let src = connection.source;\n            let trgt = connection.target;\n            if (nodes_update.find(node => node.id == src)) {\n              src = nodes_update.find(node => node.id == src).name;\n            }\n            if (nodes_update.find(node => node.id == trgt)) {\n              trgt = nodes_update.find(node => node.id == trgt).name;\n            }\n            table += `<br>${src} ${direction} ${trgt}`;\n          });\n          context.grafana.eventBus.emit('data-exchange', table);\n          table += `<br><b>Left mouse click to copy</b></div>`;\n          return table;\n        }\n      }\n    },\n    legend: [\n      {\n        orient: 'vertical',\n        left: 'right',\n        itemHeight: 7,\n        itemWidth: 5,\n        data: categories.map((a) => {\n          return a.name;\n        }),\n      },\n    ],\n    series: [\n      {\n        type: 'graph',\n        layout: 'force',\n        draggable: true,\n        edgeSymbol: ['arrow'],\n        edgeSymbolSize: [5, 10],\n        zoom: 0.05,\n        label: {\n          position: 'right',\n          color: 'red',\n          backgroundColor: '#fff',\n          opacity: 1\n        },\n        lineStyle: {\n          color: 'source',\n        },\n        emphasis: {\n          focus: 'adjacency',\n          lineStyle: {\n            width: 2\n          },\n          label: {\n            color: '#000',\n            backgroundColor: '#fff',\n            opacity: 1\n          },\n          itemStyle: {\n            opacity: 1\n          }\n        },\n        force: {\n          gravity: 1.2,\n          repulsion: 20,\n          friction: 0.05,\n          edgeLength: 10\n        },\n        data: nodes,\n        roam: true,\n        links: links,\n        categories: categories\n      },\n    ],\n  };\n} catch (e) {\n  console.error(e);\n}\n",
+        "google": {
+          "callback": "gmapReady",
+          "key": ""
+        },
+        "map": "none",
+        "renderer": "canvas",
+        "themeEditor": {
+          "config": "{}",
+          "name": "default"
+        },
+        "visualEditor": {
+          "code": "return {\n  dataset: context.editor.dataset,\n  series: context.editor.series,\n  xAxis: {\n    type: 'time',\n  },\n  yAxis: {\n    type: 'value',\n    min: 'dataMin',\n  },\n}\n",
+          "dataset": [
+            {
+              "name": "category",
+              "source": "C"
+            },
+            {
+              "name": "id",
+              "source": "C"
+            },
+            {
+              "name": "title",
+              "source": "C"
+            },
+            {
+              "name": "dest_ip",
+              "source": "D"
+            },
+            {
+              "name": "src_ip",
+              "source": "D"
+            }
+          ],
+          "series": [
+            {
+              "id": "Data",
+              "name": "s",
+              "type": "graph",
+              "uid": "e91da90c-f5bc-448b-8b42-3dac395a899a"
+            }
+          ]
+        }
+      },
+      "pluginVersion": "6.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VICTORIA-CROC-COMP.GOODS.LOCAL}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "label_match (group by (id,category)(\nunion(\n  group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(network_connections_output_total{}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2,\n  group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(network_connections_input_total{}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2,\n  group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(ngraph_netcon_established_incoming_connections_total{}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2,\n  group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(ngraph_netcon_established_outgoing_connections_total{}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2)\n  or on(id)\nunion(\n  group by (id,category)(label_transform(label_copy(  network_connections_output_total{}  ,\"dest_ip\",\"title\",\"dest_ip\",\"id\",\"dest_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"_none\")),\n  group by (id,category)(label_transform(label_copy(  network_connections_input_total{}  ,\"src_ip\",\"title\",\"src_ip\",\"id\",\"src_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"_none\")),\n  group by (id,category)(label_transform(label_copy(  ngraph_netcon_established_incoming_connections_total{}  ,\"src_ip\",\"title\",\"src_ip\",\"id\",\"src_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"_none\")),\n  group by (id,category)(label_transform(label_copy(  ngraph_netcon_established_outgoing_connections_total{}  ,\"dest_ip\",\"title\",\"dest_ip\",\"id\",\"dest_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"_none\"))\n)), \"category\", \"${group:pipe}\")",
+          "format": "table",
+          "hide": true,
+          "instant": true,
+          "key": "Q-64d35c07-2c67-44c5-bbe7-28cab301b040-0",
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VICTORIA-CROC-COMP.GOODS.LOCAL}"
+          },
+          "editorMode": "code",
+          "expr": "(label_copy(group by (dest_ip,src_ip, instance) (network_connections_input_total{src_ip=\"10.10.16.174\",dest_ip=~\"10.10.17.210\"}),\"instance\",\"target\",\"dest_ip\",\"instance\") )",
+          "hide": true,
+          "instant": true,
+          "key": "Q-64d35c07-2c67-44c5-bbe7-28cab301b040-0",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VICTORIA-CROC-COMP.GOODS.LOCAL}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "WITH (\n  new_out = network_connections_output_total{service=~\"(${prefix_group:pipe})\", stack=~\"(${postfix_group:pipe})\", dest_ip!~\"^(127|172|::).*\", src_ip!~\"^(127|172|::).*\"},\n  new_in = network_connections_input_total{service=~\"(${prefix_group:pipe})\", stack=~\"(${postfix_group:pipe})\", dest_ip!~\"^(127|172|::).*\", src_ip!~\"^(127|172|::).*\"},\n  old_out = network_connections_output_total{role=~\".+_(${prefix_group:pipe})_(${postfix_group:pipe})\", dest_ip!~\"^(127|172|::).*\", src_ip!~\"^(127|172|::).*\"},\n  old_in = network_connections_input_total{role=~\".+_(${prefix_group:pipe})_(${postfix_group:pipe})\", dest_ip!~\"^(127|172|::).*\", src_ip!~\"^(127|172|::).*\"}\n)\nunion(\n  group by (id,title,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(new_out, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2,\n  group by (id,title,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(new_in, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2,\n  group by (id,title,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_replace(old_in, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2,\n  group by (id,title,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_replace(old_out, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2)\n  or on(id)\nunion(\n      group by (id,title,category)(label_join(label_transform(label_copy(  label_join(new_out, \"category_temp\", \"_\", \"service\", \"stack\")  ,\"dest_ip\",\"title\",\"dest_ip\",\"id\",\"dest_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")),  \n    group by (id,title,category)(label_join(label_transform(label_copy(  label_join(new_in, \"category_temp\", \"_\", \"service\", \"stack\")  ,\"src_ip\",\"title\",\"src_ip\",\"id\",\"src_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")),  \n    group by (id,title,category)(label_join(label_transform(label_copy(  label_replace(old_in, \"category_temp\", \"$1\", \"role\", \".+?_mm_(.+)\")  ,\"src_ip\",\"title\",\"src_ip\",\"id\",\"src_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")),  \n    group by (id,title,category)(label_join(label_transform(label_copy(  label_replace(old_out, \"category_temp\", \"$1\", \"role\", \".+?_mm_(.+)\")  ,\"dest_ip\",\"title\",\"dest_ip\",\"id\",\"dest_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\"))\n)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "key": "Q-64d35c07-2c67-44c5-bbe7-28cab301b040-0",
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "nodes"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VICTORIA-CROC-COMP.GOODS.LOCAL}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "union(\n  group by (src_ip,dest_ip) (network_connections_output_total{job!=\"node_exporter\",service=~\"(${prefix_group:pipe})\", stack=~\"(${postfix_group:pipe})\",  dest_ip!~\"^(127|172).*\", src_ip!~\"^(127|172).*\"}),\n  group by (src_ip,dest_ip) (network_connections_input_total{job!=\"node_exporter\",service=~\"(${prefix_group:pipe})\", stack=~\"(${postfix_group:pipe})\",  dest_ip!~\"^(127|172).*\", src_ip!~\"^(127|172).*\"}),\n  group by (src_ip,dest_ip) (network_connections_input_total{job=\"node_exporter\",role=~\".+(${prefix_group:pipe})_(${postfix_group:pipe})\",  dest_ip!~\"^(127|172).*\", src_ip!~\"^(127|172).*\"}),\n  group by (src_ip,dest_ip) (network_connections_output_total{job=\"node_exporter\",role=~\".+(${prefix_group:pipe})_(${postfix_group:pipe})\",  dest_ip!~\"^(127|172).*\", src_ip!~\"^(127|172).*\"})\n  )",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "key": "Q-64d35c07-2c67-44c5-bbe7-28cab301b040-0",
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "edges"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VICTORIA-CROC-COMP.GOODS.LOCAL}"
+          },
+          "editorMode": "code",
+          "expr": " ({src_ip=\"10.11.20.153\"})\n #__name__=~\".*(outgoing_connections|connections_output).*\", ",
+          "hide": true,
+          "instant": true,
+          "key": "Q-64d35c07-2c67-44c5-bbe7-28cab301b040-0",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VICTORIA-CROC-COMP.GOODS.LOCAL}"
+          },
+          "editorMode": "code",
+          "expr": "#{__name__=~\"ngraph_netcon_established_incoming_connections_recieve_bytes_total\",instance=~\"partner-nginx-02.prod.px.croc-comp.goods.local.*\"}\n  group by (id,title,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(ngraph_netcon_established_incoming_connections_total{instance=~\"partner-nginx-02.prod.px.croc-comp.goods.local.*\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2\nlabel_join(ngraph_netcon_established_incoming_connections_total{instance=~\"partner-nginx-02.prod.px.croc-comp.goods.local.*\"}, \"category\", \"_\", \"service\", \"stack\")",
+          "hide": true,
+          "instant": true,
+          "key": "Q-64d35c07-2c67-44c5-bbe7-28cab301b040-0",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VICTORIA-CROC-COMP.GOODS.LOCAL}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "WITH (\n  new_out = network_connections_output_total{job!=\"node_exporter\",service=~\"(${prefix_group:pipe})\", stack=~\"(${postfix_group:pipe})\", dest_ip!~\"^(127|172|::).*\", src_ip!~\"^(127|172|::).*\"},\n  new_in = network_connections_input_total{job!=\"node_exporter\",service=~\"(${prefix_group:pipe})\", stack=~\"(${postfix_group:pipe})\", dest_ip!~\"^(127|172|::).*\", src_ip!~\"^(127|172|::).*\"},\n  old_out = network_connections_output_total{job=\"node_exporter\",role=~\".+_(${prefix_group:pipe})_(${postfix_group:pipe})\", dest_ip!~\"^(127|172|::).*\", src_ip!~\"^(127|172|::).*\"},\n  old_in = network_connections_input_total{job=\"node_exporter\",role=~\".+_(${prefix_group:pipe})_(${postfix_group:pipe})\", dest_ip!~\"^(127|172|::).*\", src_ip!~\"^(127|172|::).*\"}\n)\n\nunion(\n     group by (id) (label_copy(group by (dest_ip,instance) (new_out), \"dest_ip\", \"id\",\"instance\",\"title_src\")),\n    group by (id)(label_copy(group by (src_ip,instance) (new_in), \"src_ip\", \"id\",\"instance\",\"title_src\")),\n    group by (id) (label_copy(group by (dest_ip,src_ip, instance) (old_in),\"instance\",\"title_src\",\"src_ip\",\"id\")),\n    group by (id) (label_copy(group by (dest_ip,src_ip, instance) (old_out),\"instance\",\"title_src\",\"dest_ip\",\"id\"))\n) * on(id) group_left(title,category)\nunion(\n    group by (id,title,category) (label_copy(label_join(network_connections_input_total{job!=\"node_exporter\", dest_ip!~\"^(127|172|::).*\", src_ip!~\"^(127|172|::).*\"}, \"category\", \"_\", \"service\", \"stack\"), \"dest_ip\",\"id\",\"instance\",\"title\")),\n    group by (id,title,category) (label_copy(label_join(network_connections_output_total{job!=\"node_exporter\", dest_ip!~\"^(127|172|::).*\", src_ip!~\"^(127|172|::).*\"}, \"category\", \"_\", \"service\", \"stack\"), \"src_ip\",\"id\",\"instance\",\"title\")),\n    group by (id,title,category) (label_copy(label_replace(network_connections_input_total{job=\"node_exporter\", dest_ip!~\"^(127|172|::).*\", src_ip!~\"^(127|172|::).*\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\"), \"dest_ip\",\"id\",\"instance\",\"title\")),\n    group by (id,title,category) (label_copy(label_replace(network_connections_output_total{job=\"node_exporter\", dest_ip!~\"^(127|172|::).*\", src_ip!~\"^(127|172|::).*\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\"), \"src_ip\",\"id\",\"instance\",\"title\"))\n    )",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "key": "Q-64d35c07-2c67-44c5-bbe7-28cab301b040-0",
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "nodes_update"
+        }
+      ],
+      "title": "Коннекты серверов",
+      "type": "volkovlabs-echarts-panel"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIA-CROC-COMP.GOODS.LOCAL}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 15,
+        "w": 11,
+        "x": 0,
+        "y": 17
+      },
+      "id": 3,
+      "options": {
+        "afterRender": "console.log(\"start\")\nvar ctx2 = document.getElementById(\"table\");\ncontext.grafana.eventBus.subscribe({ type: 'data-exchange' }, (event) => {\n  // Проверка, что данные получены\n  if (event.payload && event.payload.length > 0) {\n    // Обновление содержимого панели\n    ctx2.innerHTML = event.payload\n  }\n});\n",
+        "content": "<div id=\"table\">Наводи курсор на ноды графа, получай классные таблички</div>",
+        "defaultContent": "<div id=\"table\">Наводи курсор на ноды графа, получай классные таблички</div>",
+        "editor": {
+          "format": "auto",
+          "language": "html"
+        },
+        "editors": [
+          "afterRender"
+        ],
+        "externalScripts": [],
+        "externalStyles": [],
+        "helpers": "",
+        "renderMode": "everyRow",
+        "styles": "",
+        "wrap": true
+      },
+      "pluginVersion": "4.5.0",
+      "type": "marcusolsson-dynamictext-panel"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIA-CROC-COMP.GOODS.LOCAL}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 15,
+        "w": 13,
+        "x": 11,
+        "y": 17
+      },
+      "id": 4,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "title"
+          }
+        ]
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VICTORIA-CROC-COMP.GOODS.LOCAL}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "WITH (\n  new_out = network_connections_output_total{job!=\"node_exporter\",service=~\"(${prefix_group:pipe})\", stack=~\"(${postfix_group:pipe})\", dest_ip!~\"^(127|172|::).*\", src_ip!~\"^(127|172|::).*\"},\n  new_in = network_connections_input_total{job!=\"node_exporter\",service=~\"(${prefix_group:pipe})\", stack=~\"(${postfix_group:pipe})\", dest_ip!~\"^(127|172|::).*\", src_ip!~\"^(127|172|::).*\"},\n  old_out = network_connections_output_total{job=\"node_exporter\",role=~\".+_(${prefix_group:pipe})_(${postfix_group:pipe})\", dest_ip!~\"^(127|172|::).*\", src_ip!~\"^(127|172|::).*\"},\n  old_in = network_connections_input_total{job=\"node_exporter\",role=~\".+_(${prefix_group:pipe})_(${postfix_group:pipe})\", dest_ip!~\"^(127|172|::).*\", src_ip!~\"^(127|172|::).*\"}\n)\n\nunion(\n     group by (id,title_src) (label_copy(group by (src_ip,dest_ip,instance) (new_out), \"dest_ip\", \"id\",\"instance\",\"title_src\", \"src_ip\",\"rel_ip\")),\n    group by (id,title_src)(label_copy(group by (src_ip,dest_ip,instance) (new_in), \"src_ip\", \"id\",\"instance\",\"title_src\", \"dest_ip\",\"rel_ip\")),\n    group by (id,title_src) (label_copy(group by (dest_ip,src_ip, instance) (old_in),\"instance\",\"title_src\",\"src_ip\",\"id\", \"dest_ip\",\"rel_ip\")),\n    group by (id,title_src) (label_copy(group by (dest_ip,src_ip, instance) (old_out),\"instance\",\"title_src\",\"dest_ip\",\"id\", \"src_ip\",\"rel_ip\"))\n) * on(id) group_left(title,category)\nunion(\n    group by (id,title,category) (label_copy(label_join(network_connections_input_total{job!=\"node_exporter\", dest_ip!~\"^(127|172).*\", src_ip!~\"^(127|172).*\"}, \"category\", \"_\", \"service\", \"stack\"), \"dest_ip\",\"id\",\"instance\",\"title\")),\n    group by (id,title,category) (label_copy(label_join(network_connections_output_total{job!=\"node_exporter\", dest_ip!~\"^(127|172).*\", src_ip!~\"^(127|172).*\"}, \"category\", \"_\", \"service\", \"stack\"), \"src_ip\",\"id\",\"instance\",\"title\")),\n    group by (id,title,category) (label_copy(label_replace(network_connections_input_total{job=\"node_exporter\", dest_ip!~\"^(127|172).*\", src_ip!~\"^(127|172).*\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\"), \"dest_ip\",\"id\",\"instance\",\"title\")),\n    group by (id,title,category) (label_copy(label_replace(network_connections_output_total{job=\"node_exporter\", dest_ip!~\"^(127|172).*\", src_ip!~\"^(127|172).*\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\"), \"src_ip\",\"id\",\"instance\",\"title\"))\n    )",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Связи SRC с известными хостами",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {},
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 40,
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VICTORIA-CROC-COMP.GOODS.LOCAL}"
+        },
+        "definition": "query_result(group by (category)(union(          group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(network_connections_output_total{job!=\"node_exporter\", src_ip!=\"127.0.0.1\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(network_connections_input_total{job!=\"node_exporter\", dest_ip!=\"127.0.0.1\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_replace(network_connections_output_total{job=\"node_exporter\", src_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_replace(network_connections_input_total{job=\"node_exporter\", dest_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2    )      ))",
+        "includeAll": false,
+        "multi": true,
+        "name": "group",
+        "options": [],
+        "query": {
+          "qryType": 3,
+          "query": "query_result(group by (category)(union(          group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(network_connections_output_total{job!=\"node_exporter\", src_ip!=\"127.0.0.1\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(network_connections_input_total{job!=\"node_exporter\", dest_ip!=\"127.0.0.1\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_replace(network_connections_output_total{job=\"node_exporter\", src_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_replace(network_connections_input_total{job=\"node_exporter\", dest_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2    )      ))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "/\\\"(.{2,}?)\\\"/",
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VICTORIA-CROC-COMP.GOODS.LOCAL}"
+        },
+        "definition": "query_result(    sum by (id,category)(      union(           group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(network_connections_output_total{job!=\"node_exporter\", src_ip!~\"^(128|172).*\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,dest_ip, instance,category) (label_join(network_connections_input_total{job!=\"node_exporter\", dest_ip!~\"^(128|172).*\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 3,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_replace(network_connections_output_total{job=\"node_exporter\", src_ip!~\"^(128|172).*\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 4,    group by (id,category) (label_copy(group by (dest_ip,dest_ip, instance,category) (label_replace(network_connections_input_total{job=\"node_exporter\", dest_ip!~\"^(128|172).*\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 5)            or on(id)       union(              group by (id,category)(label_join(label_transform(label_copy(  label_join(network_connections_output_total{job!=\"node_exporter\",src_ip!~\"^(128|172).*\"}, \"category_temp\", \"_\", \"service\", \"stack\")  ,\"dest_ip\",\"title\",\"dest_ip\",\"id\",\"dest_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")) * 6,              group by (id,category)(label_join(label_transform(label_copy(  label_join(network_connections_input_total{job!=\"node_exporter\",src_ip!~\"^(128|172).*\"}, \"category_temp\", \"_\", \"service\", \"stack\")  ,\"src_ip\",\"title\",\"src_ip\",\"id\",\"src_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")) * 7,              group by (id,category)(label_join(label_transform(label_copy(label_replace(network_connections_input_total{job=\"node_exporter\", dest_ip!~\"^(128|172).*\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")  ,\"src_ip\",\"title\",\"src_ip\",\"id\",\"src_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")) * 8,              group by (id,category)(label_join(label_transform(label_copy(label_replace(network_connections_output_total{job=\"node_exporter\", src_ip!~\"^(128|172).*\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")  ,\"dest_ip\",\"title\",\"dest_ip\",\"id\",\"dest_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\"))  * 9          ))  )",
+        "hide": 2,
+        "includeAll": true,
+        "name": "ips",
+        "options": [],
+        "query": {
+          "qryType": 3,
+          "query": "query_result(    sum by (id,category)(      union(           group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(network_connections_output_total{job!=\"node_exporter\", src_ip!~\"^(128|172).*\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,dest_ip, instance,category) (label_join(network_connections_input_total{job!=\"node_exporter\", dest_ip!~\"^(128|172).*\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 3,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_replace(network_connections_output_total{job=\"node_exporter\", src_ip!~\"^(128|172).*\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 4,    group by (id,category) (label_copy(group by (dest_ip,dest_ip, instance,category) (label_replace(network_connections_input_total{job=\"node_exporter\", dest_ip!~\"^(128|172).*\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 5)            or on(id)       union(              group by (id,category)(label_join(label_transform(label_copy(  label_join(network_connections_output_total{job!=\"node_exporter\",src_ip!~\"^(128|172).*\"}, \"category_temp\", \"_\", \"service\", \"stack\")  ,\"dest_ip\",\"title\",\"dest_ip\",\"id\",\"dest_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")) * 6,              group by (id,category)(label_join(label_transform(label_copy(  label_join(network_connections_input_total{job!=\"node_exporter\",src_ip!~\"^(128|172).*\"}, \"category_temp\", \"_\", \"service\", \"stack\")  ,\"src_ip\",\"title\",\"src_ip\",\"id\",\"src_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")) * 7,              group by (id,category)(label_join(label_transform(label_copy(label_replace(network_connections_input_total{job=\"node_exporter\", dest_ip!~\"^(128|172).*\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")  ,\"src_ip\",\"title\",\"src_ip\",\"id\",\"src_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")) * 8,              group by (id,category)(label_join(label_transform(label_copy(label_replace(network_connections_output_total{job=\"node_exporter\", src_ip!~\"^(128|172).*\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")  ,\"dest_ip\",\"title\",\"dest_ip\",\"id\",\"dest_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\"))  * 9          ))  )",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "/.+?id=\"(.+?).\\d+?\"/",
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VICTORIA-CROC-COMP.GOODS.LOCAL}"
+        },
+        "definition": "query_result(label_match(group by (id,category)(      union(           group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(network_connections_output_total{job!=\"node_exporter\", src_ip!=\"127.0.0.1\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(network_connections_input_total{job!=\"node_exporter\", dest_ip!=\"127.0.0.1\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_replace(network_connections_output_total{job=\"node_exporter\", src_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_replace(network_connections_input_total{job=\"node_exporter\", dest_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2)            or on(id)       union(              group by (id,category)(label_join(label_transform(label_copy(  label_join(network_connections_output_total{src_ip!=\"127.0.0.1\"}, \"category_temp\", \"_\", \"service\", \"stack\")  ,\"dest_ip\",\"title\",\"dest_ip\",\"id\",\"dest_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")),              group by (id,category)(label_join(label_transform(label_copy(  label_join(network_connections_input_total{src_ip!=\"127.0.0.1\"}, \"category_temp\", \"_\", \"service\", \"stack\")  ,\"src_ip\",\"title\",\"src_ip\",\"id\",\"src_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")),              group by (id,category)(label_join(label_transform(label_copy(label_replace(network_connections_input_total{job=\"node_exporter\", dest_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")  ,\"src_ip\",\"title\",\"src_ip\",\"id\",\"src_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")),              group by (id,category)(label_join(label_transform(label_copy(label_replace(network_connections_output_total{job=\"node_exporter\", src_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")  ,\"dest_ip\",\"title\",\"dest_ip\",\"id\",\"dest_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\"))            ))  ,\"category\",\"${group:pipe}\"))",
+        "hide": 2,
+        "includeAll": true,
+        "name": "prefix_group",
+        "options": [],
+        "query": {
+          "qryType": 3,
+          "query": "query_result(label_match(group by (id,category)(      union(           group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(network_connections_output_total{job!=\"node_exporter\", src_ip!=\"127.0.0.1\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(network_connections_input_total{job!=\"node_exporter\", dest_ip!=\"127.0.0.1\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_replace(network_connections_output_total{job=\"node_exporter\", src_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_replace(network_connections_input_total{job=\"node_exporter\", dest_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2)            or on(id)       union(              group by (id,category)(label_join(label_transform(label_copy(  label_join(network_connections_output_total{src_ip!=\"127.0.0.1\"}, \"category_temp\", \"_\", \"service\", \"stack\")  ,\"dest_ip\",\"title\",\"dest_ip\",\"id\",\"dest_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")),              group by (id,category)(label_join(label_transform(label_copy(  label_join(network_connections_input_total{src_ip!=\"127.0.0.1\"}, \"category_temp\", \"_\", \"service\", \"stack\")  ,\"src_ip\",\"title\",\"src_ip\",\"id\",\"src_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")),              group by (id,category)(label_join(label_transform(label_copy(label_replace(network_connections_input_total{job=\"node_exporter\", dest_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")  ,\"src_ip\",\"title\",\"src_ip\",\"id\",\"src_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")),              group by (id,category)(label_join(label_transform(label_copy(label_replace(network_connections_output_total{job=\"node_exporter\", src_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")  ,\"dest_ip\",\"title\",\"dest_ip\",\"id\",\"dest_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\"))            ))  ,\"category\",\"${group:pipe}\"))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "/.+?([^_\"]+?)_[^_]+\"/",
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VICTORIA-CROC-COMP.GOODS.LOCAL}"
+        },
+        "definition": "query_result(label_match(group by (id,category)(      union(           group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(network_connections_output_total{job!=\"node_exporter\", src_ip!=\"127.0.0.1\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(network_connections_input_total{job!=\"node_exporter\", dest_ip!=\"127.0.0.1\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_replace(network_connections_output_total{job=\"node_exporter\", src_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_replace(network_connections_input_total{job=\"node_exporter\", dest_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2)            or on(id)       union(              group by (id,category)(label_join(label_transform(label_copy(  label_join(network_connections_output_total{src_ip!=\"127.0.0.1\"}, \"category_temp\", \"_\", \"service\", \"stack\")  ,\"dest_ip\",\"title\",\"dest_ip\",\"id\",\"dest_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")),              group by (id,category)(label_join(label_transform(label_copy(  label_join(network_connections_input_total{src_ip!=\"127.0.0.1\"}, \"category_temp\", \"_\", \"service\", \"stack\")  ,\"src_ip\",\"title\",\"src_ip\",\"id\",\"src_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")),              group by (id,category)(label_join(label_transform(label_copy(label_replace(network_connections_input_total{job=\"node_exporter\", dest_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")  ,\"src_ip\",\"title\",\"src_ip\",\"id\",\"src_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")),              group by (id,category)(label_join(label_transform(label_copy(label_replace(network_connections_output_total{job=\"node_exporter\", src_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")  ,\"dest_ip\",\"title\",\"dest_ip\",\"id\",\"dest_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\"))            ))  ,\"category\",\"${group:pipe}\"))",
+        "hide": 2,
+        "includeAll": true,
+        "name": "postfix_group",
+        "options": [],
+        "query": {
+          "qryType": 3,
+          "query": "query_result(label_match(group by (id,category)(      union(           group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(network_connections_output_total{job!=\"node_exporter\", src_ip!=\"127.0.0.1\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_join(network_connections_input_total{job!=\"node_exporter\", dest_ip!=\"127.0.0.1\"}, \"category\", \"_\", \"service\", \"stack\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_replace(network_connections_output_total{job=\"node_exporter\", src_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"src_ip\",\"id\")) * 2,    group by (id,category) (label_copy(group by (dest_ip,src_ip, instance,category) (label_replace(network_connections_input_total{job=\"node_exporter\", dest_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")),\"instance\",\"title\",\"dest_ip\",\"id\")) * 2)            or on(id)       union(              group by (id,category)(label_join(label_transform(label_copy(  label_join(network_connections_output_total{src_ip!=\"127.0.0.1\"}, \"category_temp\", \"_\", \"service\", \"stack\")  ,\"dest_ip\",\"title\",\"dest_ip\",\"id\",\"dest_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")),              group by (id,category)(label_join(label_transform(label_copy(  label_join(network_connections_input_total{src_ip!=\"127.0.0.1\"}, \"category_temp\", \"_\", \"service\", \"stack\")  ,\"src_ip\",\"title\",\"src_ip\",\"id\",\"src_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")),              group by (id,category)(label_join(label_transform(label_copy(label_replace(network_connections_input_total{job=\"node_exporter\", dest_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")  ,\"src_ip\",\"title\",\"src_ip\",\"id\",\"src_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\")),              group by (id,category)(label_join(label_transform(label_copy(label_replace(network_connections_output_total{job=\"node_exporter\", src_ip!=\"127.0.0.1\"}, \"category\", \"$1\", \"role\", \".+?_mm_(.+)\")  ,\"dest_ip\",\"title\",\"dest_ip\",\"id\",\"dest_ip\",\"category\"),\"category\",\"(.[0-9]+?)$\",\"\"),\"category\",\"_\",\"category\",\"category_temp\"))            ))  ,\"category\",\"${group:pipe}\"))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "/.+?category=\".+?_([^_]+?)\"/",
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Ngraph Copy",
+  "uid": "fa0fcdc7-0043-4600-a92d-f8eca1eb8e98",
+  "version": 70,
+  "weekStart": ""
+}
